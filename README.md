@@ -1,0 +1,2 @@
+# sole
+Urbit web terminal
