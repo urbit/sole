@@ -21,6 +21,8 @@ If you have urbit installed in `~/urbit` with a planet called `sampel-sipnym` an
 
 `cp -r desk/ ~/urbit/sampel-sipnym/home/`
 
+Alternately, `./desk` can be symlinked directly to `home`.
+
 # Contributing
 
 If you have a patch you'd like to contribute:
