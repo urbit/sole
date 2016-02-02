@@ -1,0 +1,29 @@
+{
+  "name": "web-sole",
+  "version": "1.0.0",
+  "description": "Urbit web console",
+  "main": "index.js",
+  "browserify": {
+    "transform": [
+      "coffeeify"
+    ]
+  },
+  "scripts": {
+    "watch": "OUT=desk/web/lib/js; mkdir -p $OUT; watchify -v -o $OUT/sole.js main.coffee",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/urbit/sole.git"
+  },
+  "author": "~fyr",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/urbit/sole/issues"
+  },
+  "homepage": "https://github.com/urbit/sole#readme",
+  "dependencies": {
+    "coffeeify": "^2.0.1",
+    "watchify": "^3.7.0"
+  }
+}
