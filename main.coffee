@@ -16,7 +16,7 @@ Prompt = recl
     buf =  @props.input + " "
     pre {}, @props.appl+pro,
       span {style: background: 'lightgray'},
-        buf.slice(0,cur), "\u0332", buf.slice(cur)
+        buf.slice(0,cur), (u {}, buf[cur] ? " "), buf.slice(cur + 1)
 
 Matr = recl
   displayName: "Matr"
