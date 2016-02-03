@@ -18,27 +18,6 @@ Matr = recl render: ->
   div {}, lines
 
 $ ->
-
-  met = $('<pre>').text('m').css(display: 'none').appendTo(term).width()
-  subs = ""
-  # $(window).resize -> 
-  #   window.termWif = ($(term).width() / met).toFixed()
-  #   path =  "/new/#{termWif}"
-  #   if path is subs
-  #     return
-  #   if subs
-  #     urb.unsubscribe path: subs
-  #   subs = path
-  #   urb.subscribe {path}, (err,dat)->
-  #       if err or dat.data.ok
-  #         return;
-  #       syncRev = dat.data.rev
-  #       unless termRev > syncRev
-  #         termRev = syncRev
-  #         matr.setProps rows: dat.data.stak
-  #         document.title = "Matrix"  # XX  debug
-  # $(window).resize()
-
   flash = ($el, background)->
     $el.css {background}
     if background
@@ -123,19 +102,6 @@ $ ->
   join urb.appl
   window.join = join; window.part = part
   
-  pressed = []
-  deltim = null
-  #later = (data)->
-  #  if data
-  #    pressed.push data
-  #  clearTimeout deltim
-  #  setTimeout (->
-  #    if urb.reqq.length > 0 
-  #      return deltim = later()
-  #    urb.send data: pressed
-  #    pressed = []
-  #  ), 500
-
   urb.send.mark = 'sole-action'
   sendAction = (data)->
     if matr.props.appl then urb.send data, (e,res)->
@@ -263,45 +229,6 @@ $ ->
     if key.act and key.act in mod
       return
     e.preventDefault()
-    #[fore, aft] = (
-    #  [sli,cur] = [mapr.input.slice, mapr.cursor]
-    #  [sli(0, cur), sli(cur)]
-    #)
-    eatKyev mod, key
+   eatKyev mod, key
 
-    #amod = (arr)->
-    #  for i in arr
-    #    unless mod.indexOf(i) < 0
-    #      return yes
-    #  no
-    # if key.str or key.act is 'baxp' or key.act is 'entr'
-    #   termRev++
-    #   [bot, rest...] = old = matr.props.rows
-    #   matr.setProps rows:(
-    #     switch  key.act 
-    #       when 'baxp'
-    #         if amod ['ctrl', 'meta']
-    #           ['', rest...]
-    #         else if amod ['alt']
-    #           [(bot.replace /\ *[^ ]*$/, ''), rest...]
-    #         else if bot and bot.length 
-    #           [bot.slice(0, -1), rest...]
-    #         else if rest[0] and rest[0].length
-    #           res = rest.slice()
-    #           res[0] = res[0].slice(0, -1)
-    #           res
-    #         else rest
-    #       when 'entr'
-    #         ['', old...]
-    #       when undefined
-    #         if mod.length > 1 or (mod.length and !amod ['shift'])
-    #           old
-    #         else unless old and bot isnt null
-    #           [key.str]
-    #         #else if bot.length is termWif
-    #         #  [key.str, old...]
-    #         else [bot + key.str, rest...]
-    #   )
-    #   document.title = "Matri"  # XX  debug
-    # later {mod, key}
 
