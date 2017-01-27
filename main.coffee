@@ -1,6 +1,7 @@
 [recl,rele] = [React.createClass, React.createElement]
 {div, u, pre, span} = React.DOM
-TreeActions = window.tree.actions
+TreeStore = window.tree.util.store
+{registerComponent} = window.tree.util.actions
 
 str = JSON.stringify
 Share = require "./share.coffee"
@@ -11,10 +12,10 @@ buffer = "": new Share "" # XX global
 Prompt = recl
   displayName: "Prompt"
   render: ->
-    pro = @props.prompt[@props.appl] ? "X"
+    pro = @props.prompt[@props.app] ? "X"
     cur =  @props.cursor
     buf =  @props.input + " "
-    pre {}, @props.appl+pro,
+    pre {}, @props.app, pro,
       span {style: background: 'lightgray'},
         buf.slice(0,cur), (u {}, buf[cur] ? " "), buf.slice(cur + 1)
 
@@ -24,17 +25,17 @@ Matr = recl
     lines = @props.rows.map (lin,key)-> pre {key}, lin, " "
     lines.push rele Prompt,
       key: "prompt"
-      appl:   @props.appl, 
+      app:   @props.app, 
       prompt: @props.prompt, 
       input:  @props.input, 
       cursor: @props.cursor
     div {}, lines
 
-TreeActions.registerComponent "sole", recl
+TreeStore.dispatch registerComponent "sole", recl
   displayName: "Sole"
   getInitialState: ->
     rows:[]
-    appl:@props.appl
+    app:@props["data-app"]
     prompt:{"": "# "}
     input:""
     cursor:0
@@ -55,14 +56,14 @@ TreeActions.registerComponent "sole", recl
       setTimeout (=> @flash $el,''), 50
   bell: -> @flash ($ 'body'), 'black'
     
-  choose: (appl)->
-    buffer[appl] ?= new Share ""
+  choose: (app)->
+    buffer[app] ?= new Share ""
     @updPrompt '', null
-    @setState {appl, cursor: 0, input: buffer[appl].buf}
+    @setState {app, cursor: 0, input: buffer[app].buf}
   
   print: (txt)-> @setState rows: [@state.rows..., txt]
-  sync: (ted,app = @state.appl)->
-    if app is @state.appl
+  sync: (ted,app = @state.app)->
+    if app is @state.app
       b = buffer[app]
       @setState input: b.buf, cursor: b.transpose ted, @state.cursor
   
@@ -72,11 +73,11 @@ TreeActions.registerComponent "sole", recl
     @setState {prompt}
     
   sysStatus: -> @updPrompt '', (
-      [app,pro] = [@state.appl, (k for k,v of @state.prompt when k isnt '')]
+      [app,pro] = [@state.app, (k for k,v of @state.prompt when k isnt '')]
       if app is '' then (pro.join ', ')+'# ' else null
     )
 
-  peer: (ruh,app = @state.appl) ->
+  peer: (ruh,app = @state.app) ->
     if ruh.map then return ruh.map (rul)=> @peer rul, app
     mapr = @state
     switch Object.keys(ruh)[0]
@@ -103,33 +104,33 @@ TreeActions.registerComponent "sole", recl
     if @state.prompt[app]?
       return @print '# already-joined: '+app
     @choose app
-    urb.bind "/sole", {appl:@state.appl,wire:"/"}, (err,d)=>
+    urb.bind "/sole", {app:@state.app,wire:"/"}, (err,d)=>
       if err then console.log err
       else if d.data then @peer d.data, app
       
   cycle: ()->
     apps = Object.keys @state.prompt
     if apps.length < 2 then return
-    @choose apps[1 + apps.indexOf @state.appl] ? apps[0]
+    @choose apps[1 + apps.indexOf @state.app] ? apps[0]
   
-  part: (appl)->
+  part: (app)->
     mapr = @state
-    unless mapr.prompt[appl]?
-      return @print '# not-joined: '+appl
-    urb.drop "/sole", {appl, wire: "/"}
-    if appl is mapr.appl then @cycle()
-    @updPrompt appl, null
+    unless mapr.prompt[app]?
+      return @print '# not-joined: '+app
+    urb.drop "/sole", {app, wire: "/"}
+    if app is mapr.app then @cycle()
+    @updPrompt app, null
     @sysStatus()
   
   componentWillUnmount: -> @mousetrapStop()
   componentDidMount: ->
     @mousetrapInit()
-    @join @state.appl
+    @join @state.app
 
   sendAction: (data)->  # handle join/part ^V prompt
-    {appl} = @state
-    if appl
-      urb.send data, {appl,mark:'sole-action'}, (e,res)=>
+    {app} = @state
+    if app
+      urb.send data, {app,mark:'sole-action'}, (e,res)=>
         if res.status isnt 200
           @setState error: res.data.mess
     else if data is 'ret'
@@ -142,7 +143,7 @@ TreeActions.registerComponent "sole", recl
         else @bell()
 
   doEdit: (ted)->
-    det = buffer[@state.appl].transmit ted
+    det = buffer[@state.app].transmit ted
     @sync ted
     @sendAction {det}
   
@@ -191,8 +192,8 @@ TreeActions.registerComponent "sole", recl
         when 'g' then @bell()
         when 'x' then @cycle()
         when 'v'
-          appl = if mapr.appl isnt '' then '' else @state.appl
-          @setState {appl, cursor:0, input:buffer[appl].buf}
+          app = if mapr.app isnt '' then '' else @state.app
+          @setState {app, cursor:0, input:buffer[app].buf}
           @sysStatus()
         when 't'
           if mapr.cursor is 0 or mapr.input.length < 2
