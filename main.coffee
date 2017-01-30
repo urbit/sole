@@ -22,7 +22,7 @@ Prompt = recl
 Matr = recl
   displayName: "Matr"
   render: ->
-    lines = @props.rows.map (lin,key)-> pre {key}, lin, " "
+    lines = @props.rows.map (lin,key)-> pre {key, style:padding:0}, lin, " "
     lines.push rele Prompt,
       key: "prompt"
       app:   @props.app, 
@@ -82,7 +82,7 @@ TreeStore.dispatch registerComponent "sole", recl
     mapr = @state
     switch Object.keys(ruh)[0]
       when 'txt' then @print ruh.txt
-      when 'tan' then ruh.tan.split("\n").map @print
+      when 'tan' then ruh.tan.trim().split("\n").map @print
       when 'pro' then @updPrompt app, ruh.pro.cad
       when 'hop' then @setState cursor: ruh.hop; @bell() # XX buffer.transpose?
       when 'blk' then console.log "Stub #{str ruh}"
@@ -104,7 +104,7 @@ TreeStore.dispatch registerComponent "sole", recl
     if @state.prompt[app]?
       return @print '# already-joined: '+app
     @choose app
-    urb.bind "/sole", {app:@state.app,wire:"/"}, (err,d)=>
+    urb.bind "/sole", {app:@state.app,responseKey:"/"}, (err,d)=>
       if err then console.log err
       else if d.data then @peer d.data, app
       
@@ -117,7 +117,7 @@ TreeStore.dispatch registerComponent "sole", recl
     mapr = @state
     unless mapr.prompt[app]?
       return @print '# not-joined: '+app
-    urb.drop "/sole", {app, wire: "/"}
+    urb.drop "/sole", {app, responseKey: "/"}
     if app is mapr.app then @cycle()
     @updPrompt app, null
     @sysStatus()
