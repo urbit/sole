@@ -8,6 +8,7 @@ Share = require "./share.coffee"
 
 buffer = "": new Share "" # XX global
 
+noPad = padding: 0
 
 Prompt = recl
   displayName: "Prompt"
@@ -15,14 +16,14 @@ Prompt = recl
     pro = @props.prompt[@props.app] ? "X"
     cur =  @props.cursor
     buf =  @props.input + " "
-    pre {}, @props.app, pro,
+    pre {style:noPad},
       span {style: background: 'lightgray'},
-        buf.slice(0,cur), (u {}, buf[cur] ? " "), buf.slice(cur + 1)
+        pro.slice(0,cur), (u {}, pro[cur] ? " "), pro.slice(cur + 1)
 
 Matr = recl
   displayName: "Matr"
   render: ->
-    lines = @props.rows.map (lin,key)-> pre {key, style:padding:0}, lin, " "
+    lines = @props.rows.map (lin,key)-> pre {key,style:noPad}, lin, " "
     lines.push rele Prompt,
       key: "prompt"
       app:   @props.app, 
@@ -77,14 +78,22 @@ TreeStore.dispatch registerComponent "sole", recl
       if app is '' then (pro.join ', ')+'# ' else null
     )
 
+  exec: (action) ->
+    if action.map then return action.map (act)=> @exec act
+    else
+      type = Object.keys(action)[0]
+      @[type] action[type]
+    
   peer: (ruh,app = @state.app) ->
     if ruh.map then return ruh.map (rul)=> @peer rul, app
     mapr = @state
     switch Object.keys(ruh)[0]
+      when 'out' then @print ruh.out
       when 'txt' then @print ruh.txt
       when 'tan' then ruh.tan.trim().split("\n").map @print
       when 'pro' then @updPrompt app, ruh.pro.cad
-      when 'hop' then @setState cursor: ruh.hop; @bell() # XX buffer.transpose?
+      when 'pom' then @updPrompt app, _.map ruh.pom, ({text})->text
+      when 'hop' then @setState cursor: ruh.hop #; @bell() # XX buffer.transpose?
       when 'blk' then console.log "Stub #{str ruh}"
       when 'det' then buffer[app].receive ruh.det; @sync ruh.det.ted, app
       when 'act' then switch ruh.act
@@ -104,7 +113,7 @@ TreeStore.dispatch registerComponent "sole", recl
     if @state.prompt[app]?
       return @print '# already-joined: '+app
     @choose app
-    urb.bind "/sole", {app:@state.app,responseKey:"/"}, (err,d)=>
+    urb.bind "/drum", {app:@state.app,responseKey:"/"}, (err,d)=>
       if err then console.log err
       else if d.data then @peer d.data, app
       
@@ -117,7 +126,7 @@ TreeStore.dispatch registerComponent "sole", recl
     mapr = @state
     unless mapr.prompt[app]?
       return @print '# not-joined: '+app
-    urb.drop "/sole", {app, responseKey: "/"}
+    urb.drop "/drum", {app, responseKey: "/"}
     if app is mapr.app then @cycle()
     @updPrompt app, null
     @sysStatus()
@@ -147,8 +156,13 @@ TreeStore.dispatch registerComponent "sole", recl
     @sync ted
     @sendAction {det}
   
+  sendKyev: (mod, key)->
+    {app} = @state
+    urb.send {mod,key}, {app,mark:'dill-belt'}
+    
   eatKyev: (mod, key)->
     mapr = @state
+    if true then return @sendKyev mod, key
     switch mod.sort().join '-'
       when '', 'shift'
         if key.str
