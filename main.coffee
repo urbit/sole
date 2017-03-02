@@ -10,27 +10,24 @@ buffer = "": new Share "" # XX global
 
 noPad = padding: 0
 
-Prompt = recl
-  displayName: "Prompt"
-  render: ->
-    pro = @props.prompt[@props.app] ? "X"
-    cur =  @props.cursor
-    buf =  @props.input + " "
-    pre {style:noPad},
-      span {style: background: 'lightgray'},
-        pro.slice(0,cur), (u {}, pro[cur] ? " "), pro.slice(cur + 1)
+Prompt = ({prompt,app,cursor,input})->
+  pro = prompt[app] ? "X"
+  cur =  cursor - pro.length
+  buf =  input + " "
+  pre {style:noPad}, pro,
+    span {style: background: 'lightgray'},
+      buf.slice(0,cur), (u {}, buf[cur] ? " "), buf.slice(cur + 1)
 
-Matr = recl
-  displayName: "Matr"
-  render: ->
-    lines = @props.rows.map (lin,key)-> pre {key,style:noPad}, lin, " "
-    lines.push rele Prompt,
+Matr = ({rows,app,prompt,input,cursor}) ->
+  div {},
+    for lin,key in rows
+      pre {key,style:noPad}, lin, " "
+    rele Prompt,
       key: "prompt"
-      app:   @props.app, 
-      prompt: @props.prompt, 
-      input:  @props.input, 
-      cursor: @props.cursor
-    div {}, lines
+      app:   app,
+      prompt: prompt,
+      input:  input,
+      cursor: cursor
 
 TreeStore.dispatch registerComponent "sole", recl
   displayName: "Sole"
