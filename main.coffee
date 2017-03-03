@@ -1,12 +1,91 @@
-[recl,rele] = [React.createClass, React.createElement]
-{div, u, pre, span} = React.DOM
-TreeStore = window.tree.util.store
-{registerComponent} = window.tree.util.actions
+[recl,rele]                    = [React.createClass, React.createElement]
+{div, u, pre, span}            = React.DOM
+TreeStore                      = window.tree.util.store
+{registerComponent}            = window.tree.util.actions
+
+{createStore, combineReducers} = Redux
+{Provider, connect}            = ReactRedux
 
 str = JSON.stringify
 Share = require "./share.coffee"
 
-buffer = "": new Share "" # XX global
+reducers = do ->
+  buffer = (state = {"": new Share ""}, {type,payload})->
+    switch type
+      when "edit"
+        {app,ted} = payload
+        state[app].transmit ted
+      when "app"
+        state = $.extend {}, state
+        state[app] ?= new Share ""
+        state
+      else state
+
+  rows = (state = [], {type, payload})->
+    switch type
+      when "row" then [state..., payload]
+      when "clear" then []
+      else state
+  app = (state = '', {type, payload})->
+    switch type
+      when "app" then payload
+      else state
+  prompt = (state = {}, {type, payload})->
+    switch type
+      when "prompt"
+        {pro,app} = payload
+        state = $.extend {}, state
+        if pro? then state[app] = pro else delete state[app]
+        state
+      else state
+#   input = (state = "", {type, payload})->
+#     switch type
+#       when "state.input" then payload
+#       else state
+  cursor = (state = 0, {type, payload})->
+    switch type
+      when "state.cursor" then payload
+      when "app" then 0
+      when "line" then 0
+      else state
+  history = (state = {offset:0, active:false, log:[]}, {type, payload})->
+    {offset, active, log} = state
+    switch type
+      when "historyAdd"
+        log = [paylod, log...]
+        {offset, active, log}
+      when "edit" then {offset:0, active:false, log}
+      when "line" then {offset:0, active:false, log}
+      when "historyPrevious"
+        if !active
+          {offset, active:true, log}
+        else
+          if offset < log.length - 1
+            offset++
+          {offset, active, log}
+      when "historyNext"
+        if !active
+          {offset, active:true, log}
+        else
+          if offset > 0
+            offset--
+          {offset, active, log}
+      else state
+
+  error = (state = "", {type, payload})->
+    switch type
+      when "state.error" then payload
+      else state
+
+#   drumOn = (state = false, {type})->
+#     switch type
+#       when "drumToggle" then !state
+#       else state
+  
+#   drumBuffer = (state = (new Share ""), {type})->
+
+  combineReducers {buffer, state:
+    combineReducers {rows,app,prompt,cursor,history,error}}
 
 noPad = padding: 0
 
@@ -22,95 +101,119 @@ Matr = ({rows,app,prompt,input,cursor}) ->
   div {},
     for lin,key in rows
       pre {key,style:noPad}, lin, " "
-    rele Prompt,
-      key: "prompt"
-      app:   app,
-      prompt: prompt,
-      input:  input,
-      cursor: cursor
+    rele Prompt, {app,prompt,input,cursor,key: "prompt"}
 
-TreeStore.dispatch registerComponent "sole", recl
-  displayName: "Sole"
-  getInitialState: ->
-    rows:[]
-    app:@props["data-app"]
-    prompt:{"": "# "}
-    input:""
-    cursor:0
-    history:[]
-    offset:0
-    
-    error:""
+Sole = connect((a)->a) ({state,buffer})->
+  (div {},
+     (div {id:"err"},state.error)
+     (rele Matr, state)
+  )
 
-  render: ->
-    (div {},
-       (div {id:"err"},@state.error)
-       (rele Matr, @state)
-     )
+IO = connect(((s)->s),(dispatch)-> Actions: Actions dispatch) recl
+  render: -> div {}
+  componentWillUnmount: -> Mousetrap.handleKey = @_defaultHandleKey
+  componentDidMount: ->
+    @_defaultHandleKey = Mousetrap.handleKey 
+    Mousetrap.handleKey = (char, mod, e)=>
+      {mod, key} = toKyev {char, mod, type:e.type}
+      if key
+        e.preventDefault()
+        @props.Actions.eatKyev mod, key, @props.state
+        
+setTimeout -> # XX
+  TreeStore.dispatch registerComponent "sole", recl
+    getInitialState: ->
+      store = createStore reducers, undefined, window.__REDUX_DEVTOOLS_EXTENSION__()
+      (Actions store.dispatch).join @props["data-app"]
+      {store}
+    render: ->
+      rele Provider, {store:@state.store},
+        div {},
+          rele IO
+          rele Sole, @props
   
+toKyev = ({char, mod, type})->
+  norm = {
+    capslock:  'caps'
+    pageup:    'pgup'
+    pagedown:  'pgdn'
+    backspace: 'baxp'
+    enter:     'entr'
+  }
+
+  key = switch
+    when char.length is 1
+      if type is 'keypress'
+        chac = char.charCodeAt(0)
+        if chac < 32          # normalize ctrl keys
+          char = String.fromCharCode chac | 96
+        str: char
+    when type is 'keydown'
+      if char isnt 'space'
+        act: norm[char] ? char
+    when type is 'keyup' and norm[key] is 'caps'
+      act: 'uncap'
+  if (key?.act in mod)
+    {}
+  else {mod, key}
+
+getPrompt = ({app,prompt})->
+  if app is ''
+    (k for k,v of prompt).join(', ') + '# '
+  else
+    prompt[app]
+    
+getInput = ({app,buffer,history})->
+  if history.active
+    history.log[history.offset] # editable mb?
+  else buffer[app].buf
+  
+Actions = (_dispatch)->
   flash: ($el, background)->
     $el.css {background}
     if background
       setTimeout (=> @flash $el,''), 50
   bell: -> @flash ($ 'body'), 'black'
     
-  choose: (app)->
-    buffer[app] ?= new Share ""
-    @updPrompt '', null
-    @setState {app, cursor: 0, input: buffer[app].buf}
+  dispatch: (action)->
+    type = [k for k of action].join " "
+    _dispatch {type,payload:action[type]}
+
+  choose: (app)-> @dispatch {app}
   
-  print: (txt)-> @setState rows: [@state.rows..., txt]
-  sync: (ted,app = @state.app)->
+  print: (row)-> @dispatch {row}
+  sync: (ted,app)->
     if app is @state.app
       b = buffer[app]
-      @setState input: b.buf, cursor: b.transpose ted, @state.cursor
-  
-  updPrompt: (app,pro) ->
-    prompt = $.extend {}, @state.prompt
-    if pro? then prompt[app] = pro else delete prompt[app]
-    @setState {prompt}
+      @dispatch state: cursor: b.transpose ted, @state.cursor
     
-  sysStatus: -> @updPrompt '', (
-      [app,pro] = [@state.app, (k for k,v of @state.prompt when k isnt '')]
-      if app is '' then (pro.join ', ')+'# ' else null
-    )
-
-  exec: (action) ->
-    if action.map then return action.map (act)=> @exec act
-    else
-      type = Object.keys(action)[0]
-      @[type] action[type]
-    
-  peer: (ruh,app = @state.app) ->
+  peer: (ruh,app) ->
     if ruh.map then return ruh.map (rul)=> @peer rul, app
-    mapr = @state
     switch Object.keys(ruh)[0]
       when 'out' then @print ruh.out
       when 'txt' then @print ruh.txt
       when 'tan' then ruh.tan.trim().split("\n").map @print
-      when 'pro' then @updPrompt app, ruh.pro.cad
-      when 'pom' then @updPrompt app, _.map ruh.pom, ({text})->text
-      when 'hop' then @setState cursor: ruh.hop #; @bell() # XX buffer.transpose?
+      when 'pro' then @dispatch prompt: {app, pro: ruh.pro.cad}
+      when 'pom' then @dispatch prompt: {app, pro: _.map ruh.pom, ({text})->text}
+      when 'hop' then @dispatch "state.cursor": ruh.hop #; @bell() # XX buffer.transpose?
       when 'blk' then console.log "Stub #{str ruh}"
       when 'det' then buffer[app].receive ruh.det; @sync ruh.det.ted, app
       when 'act' then switch ruh.act
-        when 'clr' then @setState rows:[]
+        when 'clr' then @dispatch {'clear'}
         when 'bel' then @bell()
-        when 'nex' then @setState
-          input: ""
-          cursor: 0
-          history: 
-            if !mapr.input then mapr.history
-            else [mapr.input, mapr.history...]
-          offset: 0
+        when 'nex'
+          # @dispatch state: input: "" hmm
+          @dispatch {'line'}
+          if @state.input
+            @dispatch state: historyAdd: @state.input
       #   else throw "Unknown "+(JSON.stringify ruh)
       else v = Object.keys(ruh); console.log v, ruh[v[0]]
 
   join: (app)->
-    if @state.prompt[app]?
-      return @print '# already-joined: '+app
+#     if @state.prompt[app]?
+#       return @print '# already-joined: '+app
     @choose app
-    urb.bind "/drum", {app:@state.app,responseKey:"/"}, (err,d)=>
+    urb.bind "/drum", {app,responseKey:"/"}, (err,d)=>
       if err then console.log err
       else if d.data then @peer d.data, app
       
@@ -120,17 +223,13 @@ TreeStore.dispatch registerComponent "sole", recl
     @choose apps[1 + apps.indexOf @state.app] ? apps[0]
   
   part: (app)->
-    mapr = @state
-    unless mapr.prompt[app]?
+    unless @state.prompt[app]?
       return @print '# not-joined: '+app
     urb.drop "/drum", {app, responseKey: "/"}
-    if app is mapr.app then @cycle()
-    @updPrompt app, null
-    @sysStatus()
+    if app is @state.app then @cycle()
+    @dispatch prompt: {app, pro: null}
   
-  componentWillUnmount: -> @mousetrapStop()
   componentDidMount: ->
-    @mousetrapInit()
     @join @state.app
 
   sendAction: (data)->  # handle join/part ^V prompt
@@ -138,62 +237,63 @@ TreeStore.dispatch registerComponent "sole", recl
     if app
       urb.send data, {app,mark:'sole-action'}, (e,res)=>
         if res.status isnt 200
-          @setState error: res.data.mess
+          @dispatch state: error: res.data.mess
     else if data is 'ret'
       app = /^[a-z-]+$/.exec(buffer[""].buf.slice(1))
       unless app? and app[0]?
         return @bell()
       else switch buffer[""].buf[0]
-        when '+' then @doEdit set: ""; @join app[0]
-        when '-' then @doEdit set: ""; @part app[0]
+        when '+' then @dispatch edit: set: ""; @join app[0]
+        when '-' then @dispatch edit: set: ""; @part app[0]
         else @bell()
 
-  doEdit: (ted)->
-    det = buffer[@state.app].transmit ted
-    @sync ted
+  doEdit: (ted, app)->
+    @dispatch edit: {ted,app}
+    det = buffer[app].transmit ted
+    @sync ted, app
     @sendAction {det}
   
-  sendKyev: (mod, key)->
-    {app} = @state
+  sendKyev: (mod, key, app)->
     urb.send {mod,key}, {app,mark:'dill-belt'}
     
-  eatKyev: (mod, key)->
-    mapr = @state
-    if true then return @sendKyev mod, key
+  eatKyev: (mod, key, state)-> # XX minimize state usage
+    if true then return @sendKyev mod, key, state.app
     switch mod.sort().join '-'
       when '', 'shift'
         if key.str
-          @doEdit ins: cha: key.str, at: mapr.cursor
-          @setState cursor: mapr.cursor+1
+          @dispatch edit: ins: cha: key.str, at: state.cursor
+          @dispatch state: cursor: state.cursor+1
         switch key.act
           when 'entr' then @sendAction 'ret'
-          when 'up'
-            history = mapr.history.slice(); offset = mapr.offset
-            if history[offset] == undefined
-              return
-            [input, history[offset]] = [history[offset], mapr.input]
-            offset++
-            @doEdit set: input
-            @setState {offset, history, cursor: input.length}
-          when 'down'
-            history = mapr.history.slice(); offset = mapr.offset
-            offset--
-            if history[offset] == undefined
-              return
-            [input, history[offset]] = [history[offset], mapr.input]
-            @doEdit set: input
-            @setState {offset, history, cursor: input.length}
-          when 'left' then if mapr.cursor > 0 
-            @setState cursor: mapr.cursor-1
-          when 'right' then if mapr.cursor < mapr.input.length
-            @setState cursor: mapr.cursor+1
-          when 'baxp' then if mapr.cursor > 0
-            @doEdit del: mapr.cursor-1
+          when 'up' then dispatch {'historyPrevious'}
+          when 'down' then dispatch {'historyNext'}
+          # when 'up'
+          #   history = state.history.slice(); offset = state.offset
+          #   if history[offset] == undefined
+          #     return
+          #   [input, history[offset]] = [history[offset], state.input]
+          #   offset++
+          #   @dispatch edit: set: input
+          #   @dispatch state: {offset, history, cursor: input.length}
+          # when 'down'
+          #   history = state.history.slice(); offset = state.offset
+          #   offset--
+          #   if history[offset] == undefined
+          #     return
+          #   [input, history[offset]] = [history[offset], state.input]
+          #   @dispatch edit: set: input
+          #   @dispatch state: {offset, history, cursor: input.length}
+          when 'left' then if state.cursor > 0 
+            @dispatch state: cursor: state.cursor-1
+          when 'right' then if state.cursor < state.input.length
+            @dispatch state: cursor: state.cursor+1
+          when 'baxp' then if state.cursor > 0
+            @dispatch edit: del: state.cursor-1
           #else (if key.act then console.log key.act)
       when 'ctrl' then switch key.str || key.act
-        when 'a','left'  then @setState cursor: 0
-        when 'e','right' then @setState cursor: mapr.input.length
-        when 'l' then @setState rows: []
+        when 'a','left'  then @dispatch state: cursor: 0
+        when 'e','right' then @dispatch state: cursor: state.input.length
+        when 'l' then @dispatch {'clear'}
         when 'entr' then @bell()
         when 'w' then @eatKyev ['alt'], act:'baxp'
         when 'p' then @eatKyev [], act: 'up'
@@ -202,71 +302,38 @@ TreeStore.dispatch registerComponent "sole", recl
         when 'f' then @eatKyev [], act: 'right'
         when 'g' then @bell()
         when 'x' then @cycle()
-        when 'v'
-          app = if mapr.app isnt '' then '' else @state.app
-          @setState {app, cursor:0, input:buffer[app].buf}
-          @sysStatus()
+        when 'v' then @dispatch app:''
         when 't'
-          if mapr.cursor is 0 or mapr.input.length < 2
+          if state.cursor is 0 or state.input.length < 2
             return @bell()
-          cursor = mapr.cursor
-          if cursor < mapr.input.length
+          cursor = state.cursor
+          if cursor < state.input.length
             cursor++
-          @doEdit [{del:cursor-1},ins:{at:cursor-2,cha:mapr.input[cursor-1]}]
-          @setState {cursor}
+          @dispatch edit: [{del:cursor-1},ins:{at:cursor-2,cha:state.input[cursor-1]}]
+          @dispatch state: {cursor}
         when 'u' 
-          @yank = mapr.input.slice(0,mapr.cursor)
-          @doEdit (del:mapr.cursor - n for n in [1..mapr.cursor])
+          @dispatch state: yank: state.input.slice(0,state.cursor)
+          @dispatch edit: (del:state.cursor - n for n in [1..state.cursor])
         when 'k'
-          @yank = mapr.input.slice(mapr.cursor)
-          @doEdit (del:mapr.cursor for _ in [mapr.cursor...mapr.input.length])
+          @dispatch state: yank: state.input.slice(state.cursor)
+          @dispatch edit: (del:state.cursor for _ in [state.cursor...state.input.length])
         when 'y'
-          @doEdit (ins: {cha, at: mapr.cursor + n} for cha,n in @yank ? '')
+          @dispatch edit: (ins: {cha, at: state.cursor + n} for cha,n in state.yank ? '')
         else console.log mod, str key
       when 'alt' then switch key.str || key.act
         when 'f','right'
-          rest = mapr.input.slice(mapr.cursor)
+          rest = state.input.slice(state.cursor)
           rest = rest.match(/\W*\w*/)[0] # XX unicode
-          @setState cursor: mapr.cursor + rest.length
+          @dispatch state: cursor: state.cursor + rest.length
         when 'b','left'
-          prev = mapr.input.slice(0,mapr.cursor)
+          prev = state.input.slice(0,state.cursor)
           prev = prev.split('').reverse().join('')  # XX
           prev = prev.match(/\W*\w*/)[0] # XX unicode
-          @setState cursor: mapr.cursor - prev.length
+          @dispatch state: cursor: state.cursor - prev.length
         when 'baxp'
-          prev = mapr.input.slice(0,mapr.cursor)
+          prev = state.input.slice(0,state.cursor)
           prev = prev.split('').reverse().join('')  # XX
           prev = prev.match(/\W*\w*/)[0] # XX unicode
-          @yank = prev
-          @doEdit (del: mapr.cursor-1 - n for _,n in prev)
+          @dispatch state: yank: prev
+          @dispatch edit: (del: state.cursor-1 - n for _,n in prev)
       else console.log mod, str key
-
-  mousetrapStop: ->  Mousetrap.handleKey = @_defaultHandleKey
-  mousetrapInit: ->
-    @_defaultHandleKey = Mousetrap.handleKey 
-    Mousetrap.handleKey = (char, mod, e)=>
-      norm = {
-        capslock:  'caps'
-        pageup:    'pgup'
-        pagedown:  'pgdn'
-        backspace: 'baxp'
-        enter:     'entr'
-      }
-
-      key = switch
-        when char.length is 1
-          if e.type is 'keypress'
-            chac = char.charCodeAt(0)
-            if chac < 32          # normalize ctrl keys
-              char = String.fromCharCode chac | 96
-            str: char
-        when e.type is 'keydown'
-          if char isnt 'space'
-            act: norm[char] ? char
-        when e.type is 'keyup' and norm[key] is 'caps'
-          act: 'uncap'
-      if !key then return
-      if key.act and key.act in mod
-        return
-      e.preventDefault()
-      @eatKyev mod, key
