@@ -38,15 +38,10 @@ reducers = do ->
         state # implicit in byApp
       else state
       
-  prompt = (state = null, {type, payload})->
+  prompt = (state = "X", {type, payload})->
     switch type
-      when "prompt"
-        payload
+      when "prompt" then payload
       else state
-#   input = (state = "", {type, payload})->
-#     switch type
-#       when "state.input" then payload
-#       else state
   cursor = (state = 0, {type, payload})->
     switch type
       when "state.cursor" then payload
@@ -101,10 +96,9 @@ getInput = ({buffer,history})->
 noPad = padding: 0
 
 Prompt = ({prompt,cursor,input})->
-  pro = prompt ? "X"
-  cur =  cursor - pro.length
+  cur =  cursor - prompt.length
   buf =  input + " "
-  pre {style:noPad}, pro,
+  pre {style:noPad}, prompt,
     span {style: background: 'lightgray'},
       buf.slice(0,cur), (u {}, buf[cur] ? " "), buf.slice(cur + 1)
       # "⧖ " history.offset
@@ -133,7 +127,7 @@ IO = connect(((s)->s),(dispatch)-> Actions: Actions dispatch) recl
       {mod, key} = toKyev {char, mod, type:e.type}
       if key
         e.preventDefault()
-        @props.Actions.eatKyev mod, key, @props.app, @props.state[app]
+        @props.Actions.eatKyev mod, key, @props.app, @props.state[@props.app]
         
 setTimeout -> # XX
   TreeStore.dispatch registerComponent "sole", recl
@@ -201,8 +195,8 @@ Actions = (_dispatch)->
       when 'out' then @print ruh.out
       when 'txt' then @print ruh.txt
       when 'tan' then ruh.tan.trim().split("\n").map @print
-      when 'pro' then @dispatch prompt: {app, pro: ruh.pro.cad}
-      when 'pom' then @dispatch prompt: {app, pro: _.map ruh.pom, ({text})->text}
+      when 'pro' then @dispatchTo app, prompt: ruh.pro.cad
+      when 'pom' then @dispatchTo app, prompt: _.map ruh.pom, ({text})->text
       when 'hop' then @dispatch "state.cursor": ruh.hop #; @bell() # XX buffer.transpose?
       when 'blk' then console.log "Stub #{str ruh}"
       when 'det' then buffer[app].receive ruh.det; @sync ruh.det.ted, app
@@ -218,7 +212,7 @@ Actions = (_dispatch)->
       else v = Object.keys(ruh); console.log v, ruh[v[0]]
 
   join: (app)->
-#     if @state.prompt[app]?
+#     if @state[app]?
 #       return @print '# already-joined: '+app
     @choose app
     urb.bind "/drum", {app,responseKey:"/"}, (err,d)=>
@@ -226,16 +220,16 @@ Actions = (_dispatch)->
       else if d.data then @peer d.data, app
       
   cycle: ()->
-    apps = Object.keys @state.prompt
+    apps = Object.keys @state
     if apps.length < 2 then return
     @choose apps[1 + apps.indexOf @state.app] ? apps[0]
   
   part: (app)->
-    unless @state.prompt[app]?
+    unless @state[app]?
       return @print '# not-joined: '+app
     urb.drop "/drum", {app, responseKey: "/"}
     if app is @state.app then @cycle()
-    @dispatch prompt: {app, pro: null}
+    @dispatchTo app, {"part"}
   
   componentDidMount: ->
     @join @state.app
