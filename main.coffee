@@ -10,33 +10,38 @@ str = JSON.stringify
 Share = require "./share.coffee"
 
 reducers = do ->
-  buffer = (state = {"": new Share ""}, {type,payload})->
-    switch type
-      when "edit"
-        {app,ted} = payload
-        state[app].transmit ted
-      when "app"
-        state = $.extend {}, state
-        state[app] ?= new Share ""
-        state
-      else state
-
   rows = (state = [], {type, payload})->
     switch type
       when "row" then [state..., payload]
       when "clear" then []
       else state
-  app = (state = '', {type, payload})->
+  app = (state = '', {type, app, payload})->
     switch type
-      when "app" then payload
+      when "choose" then app
       else state
-  prompt = (state = {}, {type, payload})->
+
+  byApp = (reducer)->
+    (state = {"": reducer(undefined,{})}, action)->
+      if action.app?
+        state = $.extend {}, state
+        state[action.app] = reducer state[action.app], action
+      state
+      
+  buffer = (state = (new Share ""), {type,payload})->
+    switch type
+      when "edit"
+        {buf, ven, lef} = state.abet()
+        state = new Share buf, ven, leg
+        state.transmit payload
+        state
+      when "choose"
+        state # implicit in byApp
+      else state
+      
+  prompt = (state = null, {type, payload})->
     switch type
       when "prompt"
-        {pro,app} = payload
-        state = $.extend {}, state
-        if pro? then state[app] = pro else delete state[app]
-        state
+        payload
       else state
 #   input = (state = "", {type, payload})->
 #     switch type
@@ -45,31 +50,26 @@ reducers = do ->
   cursor = (state = 0, {type, payload})->
     switch type
       when "state.cursor" then payload
-      when "app" then 0
       when "line" then 0
       else state
-  history = (state = {offset:0, active:false, log:[]}, {type, payload})->
+  history = (state = {offset:-1, log:[]}, {type, payload})->
     {offset, active, log} = state
     switch type
       when "historyAdd"
         log = [paylod, log...]
-        {offset, active, log}
-      when "edit" then {offset:0, active:false, log}
-      when "line" then {offset:0, active:false, log}
+        {offset:-1, log}
+      when "edit" then {offset:-1, log}
+      when "line" then {offset:-1, log}
       when "historyPrevious"
-        if !active
-          {offset, active:true, log}
-        else
-          if offset < log.length - 1
-            offset++
-          {offset, active, log}
+        if offset < log.length - 1
+          offset++
+        {offset, log}
       when "historyNext"
-        if !active
-          {offset, active:true, log}
+        if offset < 0
+          {offset,log}
         else
-          if offset > 0
-            offset--
-          {offset, active, log}
+          offset--
+          {offset, log}
       else state
 
   error = (state = "", {type, payload})->
@@ -84,29 +84,44 @@ reducers = do ->
   
 #   drumBuffer = (state = (new Share ""), {type})->
 
-  combineReducers {buffer, state:
-    combineReducers {rows,app,prompt,cursor,history,error}}
+  combineReducers {rows, app, state:
+    byApp combineReducers {prompt,buffer,cursor,history,error}}
+
+getPrompt = (app, state)->
+  if app is ''
+    (k for k,v of state).join(', ') + '# '
+  else
+    state[app].prompt
+    
+getInput = ({buffer,history})->
+  if history.offset >= 0
+    history.log[history.offset] # editable mb?
+  else buffer.buf
 
 noPad = padding: 0
 
-Prompt = ({prompt,app,cursor,input})->
-  pro = prompt[app] ? "X"
+Prompt = ({prompt,cursor,input})->
+  pro = prompt ? "X"
   cur =  cursor - pro.length
   buf =  input + " "
   pre {style:noPad}, pro,
     span {style: background: 'lightgray'},
       buf.slice(0,cur), (u {}, buf[cur] ? " "), buf.slice(cur + 1)
+      # "⧖ " history.offset
 
 Matr = ({rows,app,prompt,input,cursor}) ->
   div {},
     for lin,key in rows
       pre {key,style:noPad}, lin, " "
-    rele Prompt, {app,prompt,input,cursor,key: "prompt"}
+    rele Prompt, {prompt,input,cursor,key: "prompt"}
 
-Sole = connect((a)->a) ({state,buffer})->
+Sole = connect((a)->a) ({state,rows,app})->
+  {buffer, cursor, history, error} = state[app]
+  input = getInput {buffer, history}
+  prompt = getPrompt app, state
   (div {},
-     (div {id:"err"},state.error)
-     (rele Matr, state)
+     (div {id:"err"},error)
+     (rele Matr, {rows,app,prompt,input,cursor})
   )
 
 IO = connect(((s)->s),(dispatch)-> Actions: Actions dispatch) recl
@@ -118,12 +133,12 @@ IO = connect(((s)->s),(dispatch)-> Actions: Actions dispatch) recl
       {mod, key} = toKyev {char, mod, type:e.type}
       if key
         e.preventDefault()
-        @props.Actions.eatKyev mod, key, @props.state
+        @props.Actions.eatKyev mod, key, @props.app, @props.state[app]
         
 setTimeout -> # XX
   TreeStore.dispatch registerComponent "sole", recl
     getInitialState: ->
-      store = createStore reducers, undefined, window.__REDUX_DEVTOOLS_EXTENSION__()
+      store = createStore reducers, window.__REDUX_DEVTOOLS_EXTENSION__()
       (Actions store.dispatch).join @props["data-app"]
       {store}
     render: ->
@@ -156,17 +171,6 @@ toKyev = ({char, mod, type})->
   if (key?.act in mod)
     {}
   else {mod, key}
-
-getPrompt = ({app,prompt})->
-  if app is ''
-    (k for k,v of prompt).join(', ') + '# '
-  else
-    prompt[app]
-    
-getInput = ({app,buffer,history})->
-  if history.active
-    history.log[history.offset] # editable mb?
-  else buffer[app].buf
   
 Actions = (_dispatch)->
   flash: ($el, background)->
@@ -179,7 +183,11 @@ Actions = (_dispatch)->
     type = [k for k of action].join " "
     _dispatch {type,payload:action[type]}
 
-  choose: (app)-> @dispatch {app}
+  dispatchTo: (app,action)->
+    type = [k for k of action].join " "
+    _dispatch {type,app,payload:action[type]}
+
+  choose: (app)-> @dispatchTo app, {"choose"}
   
   print: (row)-> @dispatch {row}
   sync: (ted,app)->
@@ -248,7 +256,7 @@ Actions = (_dispatch)->
         else @bell()
 
   doEdit: (ted, app)->
-    @dispatch edit: {ted,app}
+    @dispatchTo app, edit: ted
     det = buffer[app].transmit ted
     @sync ted, app
     @sendAction {det}
@@ -256,8 +264,8 @@ Actions = (_dispatch)->
   sendKyev: (mod, key, app)->
     urb.send {mod,key}, {app,mark:'dill-belt'}
     
-  eatKyev: (mod, key, state)-> # XX minimize state usage
-    if true then return @sendKyev mod, key, state.app
+  eatKyev: (mod, key, app, state)-> # XX minimize state usage
+    if true then return @sendKyev mod, key, app
     switch mod.sort().join '-'
       when '', 'shift'
         if key.str
