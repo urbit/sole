@@ -37,7 +37,7 @@ reducers = do ->
       when "edit" then payload
       when "receive"
         share.receive payload
-        cursor = share.transpose payload, cursor
+        cursor = share.transpose payload.ted, cursor
         {cursor,share}        
       when "choose"
         state # implicit create in byApp
@@ -190,7 +190,7 @@ Actions = (_dispatch)->
     switch Object.keys(ruh)[0]
       when 'out' then @print ruh.out
       when 'txt' then @print ruh.txt
-      when 'tan' then ruh.tan.trim().split("\n").map @print
+      when 'tan' then ruh.tan.trim().split("\n").map (s)=> @print s
       when 'pro' then @dispatchTo app, prompt: ruh.pro.cad
       when 'pom' then @dispatchTo app, prompt: _.map ruh.pom, ({text})->text
       when 'hop' then # @dispatch cursor: ruh.hop #; @bell() # XX buffer.transpose?
@@ -211,7 +211,7 @@ Actions = (_dispatch)->
     # if state[app]?
     #   return @print '# already-joined: '+app
     @choose app
-    urb.bind "/drum", {app,responseKey:"/"}, (err,d)=>
+    urb.bind "/sole", {app,responseKey:"/"}, (err,d)=>
       if err then console.log err
       else if d.data then @peer d.data, app
       
@@ -223,7 +223,7 @@ Actions = (_dispatch)->
   part: (app,state)->
     unless state[app]?
       return @print '# not-joined: '+app
-    urb.drop "/drum", {app, responseKey: "/"}
+    urb.drop "/sole", {app, responseKey: "/"}
     @cycle app, state
     @dispatchTo app, {"part"}
 
