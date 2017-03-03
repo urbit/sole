@@ -98,11 +98,11 @@ stateToProps = ({yank,rows,app,state})->
 noPad = padding: 0
 
 Prompt = ({prompt,cursor,input})->
-  cur =  cursor - prompt.length
+  cur =  cursor #- prompt.length
   buf =  input + " "
   pre {style:noPad}, prompt,
     span {style: background: 'lightgray'},
-      buf.slice(0,cur), (u {}, buf[cur] ? " "), buf.slice(cur + 1)
+      buf[...cur], (u {}, buf[cur] ? " "), buf[cur+1 ..]
       # "⧖ " history.offset
 
 Matr = ({rows,app,prompt,input,cursor}) ->
