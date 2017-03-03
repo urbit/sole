@@ -31,31 +31,24 @@ reducers = do ->
         state[action.app] = reducer state[action.app], action
       state
       
-  buffer = (state = (new Share ""), {type,payload})->
+  buffer = (state = {cursor:0,share:(new Share "")}, {type,payload})->
+    {cursor,share} = state
     switch type
-      when "buffer"
-        {buf, ven, leg} = payload.abet()
-        new Share buf, ven, leg
+      when "edit" then payload
       when "receive"
-        {buf, ven, leg} = state.abet()
-        state = new Share buf, ven, leg
-        state.receive payload
-        state        
-      when "buffer"
-        payload
+        share.receive payload
+        cursor = share.transpose payload, cursor
+        {cursor,share}        
       when "choose"
         state # implicit create in byApp
+      when "cursor" then {cursor:payload,share}
+      when "line" then {cursor:0,share}
+      # when "historyNext", "historyPrevious" then cursor:null # "last" sentinel
       else state
       
   prompt = (state = "X", {type, payload})->
     switch type
       when "prompt" then payload
-      else state
-  cursor = (state = 0, {type, payload})->
-    switch type
-      when "cursor" then payload
-      # when "historyNext", "historyPrevious" then null # "last" sentinel
-      when "line" then 0
       else state
   history = (state = {offset:-1, log:[]}, {type, payload})->
     {offset, active, log} = state
@@ -90,17 +83,17 @@ reducers = do ->
 #   drumBuffer = (state = (new Share ""), {type})->
 
   combineReducers {rows, app, state:
-    byApp combineReducers {prompt,buffer,cursor,history,error}}
+    byApp combineReducers {prompt,buffer,history,error}}
 
 stateToProps = ({yank,rows,app,state})->
-  {prompt,buffer,cursor,history,error} = state[app]
+  {prompt,buffer:{share,cursor},history,error} = state[app]
   if app is ''
     prompt = (k for k,v of state).join(', ') + '# '  
   input = 
     if history.offset >= 0
       history.log[history.offset] # editable mb?
-    else buffer.buf
-  {yank,rows,app,state,prompt,buffer,input,cursor,error}
+    else share.buf
+  {yank,rows,app,state,prompt,share,cursor,input,error}
 
 noPad = padding: 0
 
@@ -133,8 +126,8 @@ IO = connect((stateToProps),(dispatch)-> Actions: Actions dispatch) recl
       {mod, key} = toKyev {char, mod, type:e.type}
       if key
         e.preventDefault()
-        {Actions, app, buffer,cursor,input,yank} = @props
-        Actions.eatKyev mod, key, app, {buffer,cursor,input,yank}
+        {Actions, app, share,cursor,input,yank} = @props
+        Actions.eatKyev mod, key, app, {share,cursor,input,yank}
         
 setTimeout -> # XX
   TreeStore.dispatch registerComponent "sole", recl
@@ -191,9 +184,6 @@ Actions = (_dispatch)->
   choose: (app)-> @dispatchTo app, {"choose"}
   
   print: (row)-> @dispatch {row}
-  sync: (ted,app)->
-    b = buffer[app]
-    @dispatchTo app, state: cursor: b.transpose ted, @state.cursor
     
   peer: (ruh,app) ->
     if ruh.map then return ruh.map (rul)=> @peer rul, app
@@ -237,29 +227,31 @@ Actions = (_dispatch)->
     @cycle app, state
     @dispatchTo app, {"part"}
 
-  sendAction: (app, buffer, data)->  # handle join/part ^V prompt
+  sendAction: (app, share, data)->  # handle join/part ^V prompt
     if app
       urb.send data, {app,mark:'sole-action'}, (e,res)=>
         if res.status isnt 200
           @dispatch state: error: res.data.mess
     else if data is 'ret'
-      app = /^[a-z-]+$/.exec(buffer[""].buf.slice(1))
+      app = /^[a-z-]+$/.exec(share[""].buf.slice(1))
       unless app? and app[0]?
         return @bell()
-      else switch buffer[""].buf[0]
+      else switch share[""].buf[0]
         when '+' then @doEdit app, buffer, set: ""; @join app[0]
-        when '-' then @doEdit app, buffer, set: ""; @part app[0]
+        when '-' then @doEdit app, share, set: ""; @part app[0]
         else @bell()
 
-  doEdit: (app, buffer, ted)->
-    det = buffer.transmit ted
-    @dispatchTo app, {buffer}
-    @sendAction app, buffer, {det}
+  doEdit: (app, {share, cursor}, ted)->
+    det = share.transmit ted
+    cursor = share.transpose ted, cursor
+    @dispatchTo app, edit: {share,cursor}
+    @sendAction app, share, {det}
   
   sendKyev: (mod, key, app)->
     urb.send {mod,key}, {app,mark:'dill-belt'}
     
-  eatKyev: (mod, key, app, {buffer,input,cursor,yank})-> # XX minimize state usage
+  eatKyev: (mod, key, app, {share,input,cursor,yank})-> # XX minimize state usage
+    buffer = {share,cursor}
     # if true then return @sendKyev mod, key, app
     switch mod.sort().join '-'
       when '', 'shift'
@@ -267,7 +259,7 @@ Actions = (_dispatch)->
           @doEdit app, buffer, ins: cha: key.str, at: cursor
           @dispatchTo app, cursor: cursor+1
         switch key.act
-          when 'entr' then @sendAction app, buffer, 'ret'
+          when 'entr' then @sendAction app, share, 'ret'
           when 'up' then @dispatchTo app, {'historyPrevious'}
           when 'down' then @dispatchTo app, {'historyNext'}
           # when 'up'
