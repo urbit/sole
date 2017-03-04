@@ -7,7 +7,6 @@ TreeStore                      = window.tree.util.store
 {Provider, connect}            = ReactRedux
 thunk                          = ReduxThunk.default
 
-str = JSON.stringify
 Reducer = require "./reducer.coffee"
 Actions = require "./actions.coffee"
 

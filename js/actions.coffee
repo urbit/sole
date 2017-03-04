@@ -1,3 +1,5 @@
+str = JSON.stringify
+
 Persistence =
   listen: (app,cb)->
     urb.bind "/sole", {app,responseKey:"/"}, (err,d)=>
@@ -28,14 +30,16 @@ module.exports =
       if history.offset >= 0
         history.log[history.offset] # editable mb?
       else share.buf
-    {yank,rows,app,state,prompt,share,cursor,input,error}
+    apps = (k for k of state when k isnt "")
+    nextApp = apps[1 + apps.indexOf app] ? apps[0]
+    {yank,rows,app,nextApp,state,prompt,share,cursor,input,error}
 
   dispatch: (action)->
-    type = [k for k of action].join " "
+    type = (k for k of action).join " "
     @_dispatch {type,payload:action[type]}
 
   dispatchTo: (app,action)->
-    type = [k for k of action].join " "
+    type = (k for k of action).join " "
     @_dispatch {type,app,payload:action[type]}
 
   choose: (app)-> @dispatchTo app, {"choose"}
@@ -69,11 +73,6 @@ module.exports =
     #   return @print '# already-joined: '+app
     @choose app
     Persistence.listen app, (data)=> @peer data, app
-      
-  cycle: (app, state)->
-    apps = Object.keys state
-    if apps.length < 2 then return
-    @choose apps[1 + apps.indexOf app] ? apps[0]
   
   part: (app,state)->
     # unless state[app]?
@@ -104,7 +103,7 @@ module.exports =
   eatKyev: (mod, key)-> (@_dispatch, @_getState)=> # XX bind new object?
     {drum,app} = @_getState()
     if drum then app = ""
-    {yank,rows,app,state,share,cursor,input} = @getState app
+    {yank,rows,app,nextApp,state,share,cursor,input} = @getState app
     buffer = {share,cursor}
 
     # if true then return Persistence.sendKey app, {mod, key}
@@ -135,7 +134,7 @@ module.exports =
         when 'b' then @eatKyev [], act: 'left'
         when 'f' then @eatKyev [], act: 'right'
         when 'g' then @bell()
-        # when 'x' then @cycle app, state
+        when 'x' then @choose nextApp
         when 'v' then @dispatch {"toggleDrum"}
         when 't'
           if cursor is 0 or input.length < 2
