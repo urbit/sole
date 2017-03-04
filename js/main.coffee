@@ -3,26 +3,27 @@
 TreeStore                      = window.tree.util.store
 {registerComponent}            = window.tree.util.actions
 
-{createStore}                  = Redux
+{createStore, applyMiddleware} = Redux
 {Provider, connect}            = ReactRedux
+thunk                          = ReduxThunk.default
 
 str = JSON.stringify
 Reducer = require "./reducer.coffee"
 Actions = require "./actions.coffee"
 
-stateToProps = ({yank,rows,app,state})->
-  {prompt,buffer:{share,cursor},history,error} = state[app]
+noPad = padding: 0
+
+stateToProps = ({,app,state})->
+  {prompt,buffer:{share,cursor},history} = state[app]
   if app is ''
     prompt = (k for k,v of state when k isnt '').join(', ') + '# '  
   input = 
     if history.offset >= 0
       history.log[history.offset] # editable mb?
     else share.buf
-  {yank,rows,app,state,prompt,share,cursor,input,error}
+  {prompt,cursor,input}
 
-noPad = padding: 0
-
-Prompt = ({prompt,cursor,input})->
+Prompt = connect(stateToProps) ({prompt,cursor,input})->
   cur =  cursor #- prompt.length
   buf =  input + " "
   pre {style:noPad}, prompt,
@@ -30,19 +31,19 @@ Prompt = ({prompt,cursor,input})->
       buf[...cur], (u {}, buf[cur] ? " "), buf[cur+1 ..]
       # "⧖ " history.offset
 
-Matr = ({rows,app,prompt,input,cursor}) ->
+Matr = connect((s)->s) ({rows}) ->
   div {},
     for lin,key in rows
       pre {key,style:noPad}, lin, " "
-    rele Prompt, {prompt,input,cursor,key: "prompt"}
+    rele Prompt
 
-Sole = connect(stateToProps) ({rows,app,prompt,input,cursor,error})->
+Sole = connect(({app,state})->state[app]) ({error})->
   (div {},
      (div {id:"err"},error)
-     (rele Matr, {rows,app,prompt,input,cursor})
+     (rele Matr)
   )
 
-IO = connect((stateToProps),(dispatch)-> Actions: Actions dispatch) recl
+IO = connect() recl
   render: -> div {}
   componentWillUnmount: -> Mousetrap.handleKey = @_defaultHandleKey
   componentDidMount: ->
@@ -51,14 +52,14 @@ IO = connect((stateToProps),(dispatch)-> Actions: Actions dispatch) recl
       {mod, key} = toKyev {char, mod, type:e.type}
       if key
         e.preventDefault()
-        {Actions, app, share,cursor,input,yank} = @props
-        Actions.eatKyev mod, key, app, {share,cursor,input,yank}
+        @props.dispatch Actions.eatKyev mod, key
         
 setTimeout -> # XX
   TreeStore.dispatch registerComponent "sole", recl
     getInitialState: ->
-      store = createStore Reducer, window.__REDUX_DEVTOOLS_EXTENSION__()
-      (Actions store.dispatch).join @props["data-app"]
+      store = createStore Reducer,
+        (window.__REDUX_DEVTOOLS_EXTENSION_COMPOSE__ || (s)->s) applyMiddleware(thunk)
+      store.dispatch Actions.join @props["data-app"]
       {store}
     render: ->
       rele Provider, {store:@state.store},

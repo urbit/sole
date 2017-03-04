@@ -46,7 +46,7 @@ history = (state = {offset:-1, log:[]}, {type, payload})->
   {offset, active, log} = state
   switch type
     when "historyAdd"
-      log = [paylod, log...]
+      log = [payload, log...]
       {offset:-1, log}
     when "edit" then {offset:-1, log}
     when "line" then {offset:-1, log}

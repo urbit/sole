@@ -1,17 +1,26 @@
-module.exports = (_dispatch)->
+module.exports =
   flash: ($el, background)->
     $el.css {background}
     if background
       setTimeout (=> @flash $el,''), 50
   bell: -> @flash ($ 'body'), 'black'
     
+  getState: (app)-> # XX this seems vaguely smelly
+    {yank,rows,state} = @_getState()
+    {buffer:{share,cursor},history,error} = state[app]
+    input = 
+      if history.offset >= 0
+        history.log[history.offset] # editable mb?
+      else share.buf
+    {yank,rows,app,state,prompt,share,cursor,input,error}
+
   dispatch: (action)->
     type = [k for k of action].join " "
-    _dispatch {type,payload:action[type]}
+    @_dispatch {type,payload:action[type]}
 
   dispatchTo: (app,action)->
     type = [k for k of action].join " "
-    _dispatch {type,app,payload:action[type]}
+    @_dispatch {type,app,payload:action[type]}
 
   choose: (app)-> @dispatchTo app, {"choose"}
   
@@ -34,12 +43,12 @@ module.exports = (_dispatch)->
         when 'nex'
           # @dispatch state: input: "" hmm
           @dispatch {'line'}
-          # if @state.input # pipe through somehow?
-          #   @dispatch state: historyAdd: @state.input
+          {input} = @getState app
+          if input then @dispatchTo app, historyAdd: input
       #   else throw "Unknown "+(JSON.stringify ruh)
       else v = Object.keys(ruh); console.log v, ruh[v[0]]
 
-  join: (app,state)->
+  join: (app,state)-> (@_dispatch)=> # XX bind new object?
     # if state[app]?
     #   return @print '# already-joined: '+app
     @choose app
@@ -82,8 +91,11 @@ module.exports = (_dispatch)->
   sendKyev: (mod, key, app)->
     urb.send {mod,key}, {app,mark:'dill-belt'}
     
-  eatKyev: (mod, key, app, {share,input,cursor,yank})-> # XX minimize state usage
+  eatKyev: (mod, key)-> (@_dispatch, @_getState)=> # XX bind new object?
+    {app} = @_getState()
+    {yank,rows,app,state,share,cursor,input} = @getState app
     buffer = {share,cursor}
+
     # if true then return @sendKyev mod, key, app
     switch mod.sort().join '-'
       when '', 'shift'
