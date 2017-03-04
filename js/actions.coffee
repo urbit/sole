@@ -134,7 +134,7 @@ module.exports =
         when 'b' then @eatKyev [], act: 'left'
         when 'f' then @eatKyev [], act: 'right'
         when 'g' then @bell()
-        when 'x' then @choose nextApp
+        when 'x' then Persistence.sendKey app, {mod, key} #@choose nextApp
         when 'v' then @dispatch {"toggleDrum"}
         when 't'
           if cursor is 0 or input.length < 2
