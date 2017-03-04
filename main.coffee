@@ -88,7 +88,7 @@ reducers = do ->
 stateToProps = ({yank,rows,app,state})->
   {prompt,buffer:{share,cursor},history,error} = state[app]
   if app is ''
-    prompt = (k for k,v of state).join(', ') + '# '  
+    prompt = (k for k,v of state when k isnt '').join(', ') + '# '  
   input = 
     if history.offset >= 0
       history.log[history.offset] # editable mb?
@@ -233,12 +233,12 @@ Actions = (_dispatch)->
         if res.status isnt 200
           @dispatch state: error: res.data.mess
     else if data is 'ret'
-      app = /^[a-z-]+$/.exec(share[""].buf.slice(1))
+      app = /^[a-z-]+$/.exec(share.buf.slice(1))
       unless app? and app[0]?
         return @bell()
-      else switch share[""].buf[0]
-        when '+' then @doEdit app, buffer, set: ""; @join app[0]
-        when '-' then @doEdit app, share, set: ""; @part app[0]
+      else switch share.buf[0]
+        when '+' then @doEdit '', {share}, set: ""; @join app[0]
+        when '-' then @doEdit '', {share}, set: ""; @part app[0]
         else @bell()
 
   doEdit: (app, {share, cursor}, ted)->
@@ -297,7 +297,7 @@ Actions = (_dispatch)->
         when 'f' then @eatKyev [], act: 'right'
         when 'g' then @bell()
         when 'x' then @cycle app, state
-        when 'v' then @dispatch app:''
+        when 'v' then @choose ''
         when 't'
           if cursor is 0 or input.length < 2
             return @bell()
