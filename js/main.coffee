@@ -21,15 +21,15 @@ stateToProps = ({,app,state})->
     if history.offset >= 0
       history.log[history.offset] # editable mb?
     else share.buf
-  {prompt,cursor,input}
+  {prompt,cursor,offset:history.offset,input}
 
-Prompt = connect(stateToProps) ({prompt,cursor,input})->
+Prompt = connect(stateToProps) ({prompt,cursor,offset,input})->
   cur =  cursor #- prompt.length
   buf =  input + " "
   pre {style:noPad}, prompt,
     span {style: background: 'lightgray'},
       buf[...cur], (u {}, buf[cur] ? " "), buf[cur+1 ..]
-      # "⧖ " history.offset
+    (" ⧖" + offset) if offset >= 0
 
 Matr = connect((s)->s) ({rows}) ->
   div {},
