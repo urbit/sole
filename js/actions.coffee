@@ -1,3 +1,19 @@
+Persistence =
+  listen: (app,cb)->
+    urb.bind "/sole", {app,responseKey:"/"}, (err,d)=>
+      if err then console.log err
+      else if d.data then cb d.data
+      
+  drop: (app)-> urb.drop "/sole", {app, responseKey: "/"}
+
+  sendAct: (app,data,_,cbErr)->
+    urb.send data, {app,mark:'sole-action'}, (e,res)=>
+      # if e then cbErr e
+      if res.status isnt 200
+        cbErr res.data
+        
+  sendKey: (app, {mod, key})-> urb.send {mod,key}, {app,mark:'dill-belt'}
+
 module.exports =
   flash: ($el, background)->
     $el.css {background}
@@ -41,7 +57,6 @@ module.exports =
         when 'clr' then @dispatch {'clear'}
         when 'bel' then @bell()
         when 'nex'
-          # @dispatch state: input: "" hmm
           @dispatch {'line'}
           {input} = @getState app
           if input then @dispatchTo app, historyAdd: input
@@ -52,9 +67,7 @@ module.exports =
     # if state[app]?
     #   return @print '# already-joined: '+app
     @choose app
-    urb.bind "/sole", {app,responseKey:"/"}, (err,d)=>
-      if err then console.log err
-      else if d.data then @peer d.data, app
+    Persistence.listen app, (data)=> @peer data, app
       
   cycle: (app, state)->
     apps = Object.keys state
@@ -64,15 +77,14 @@ module.exports =
   part: (app,state)->
     unless state[app]?
       return @print '# not-joined: '+app
-    urb.drop "/sole", {app, responseKey: "/"}
+    Persistence.drop app
     @cycle app, state
     @dispatchTo app, {"part"}
 
   sendAction: (app, share, data)->  # handle join/part ^V prompt
     if app
-      urb.send data, {app,mark:'sole-action'}, (e,res)=>
-        if res.status isnt 200
-          @dispatch state: error: res.data.mess
+      Persistence.sendAct app, data, null, (err)=>
+        @dispatch state: error: err.mess
     else if data is 'ret'
       app = /^[a-z-]+$/.exec(share.buf.slice(1))
       unless app? and app[0]?
@@ -87,16 +99,13 @@ module.exports =
     cursor = share.transpose ted, cursor
     @dispatchTo app, edit: {share,cursor}
     @sendAction app, share, {det}
-  
-  sendKyev: (mod, key, app)->
-    urb.send {mod,key}, {app,mark:'dill-belt'}
     
   eatKyev: (mod, key)-> (@_dispatch, @_getState)=> # XX bind new object?
     {app} = @_getState()
     {yank,rows,app,state,share,cursor,input} = @getState app
     buffer = {share,cursor}
 
-    # if true then return @sendKyev mod, key, app
+    # if true then return Persistence.sendKey app, {mod, key}
     switch mod.sort().join '-'
       when '', 'shift'
         if key.str
@@ -106,22 +115,6 @@ module.exports =
           when 'entr' then @sendAction app, share, 'ret'
           when 'up' then @dispatchTo app, {'historyPrevious'}
           when 'down' then @dispatchTo app, {'historyNext'}
-          # when 'up'
-          #   history = state.history.slice(); offset = state.offset
-          #   if history[offset] == undefined
-          #     return
-          #   [input, history[offset]] = [history[offset], input]
-          #   offset++
-          #   @doEdit app, buffer, set: input
-          #   @dispatch state: {offset, history, cursor: input.length}
-          # when 'down'
-          #   history = state.history.slice(); offset = state.offset
-          #   offset--
-          #   if history[offset] == undefined
-          #     return
-          #   [input, history[offset]] = [history[offset], input]
-          #   @doEdit app, buffer, set: input
-          #   @dispatch state: {offset, history, cursor: input.length}
           when 'left' then if cursor > 0 
             @dispatchTo app, cursor: cursor-1
           when 'right' then if cursor < input.length
@@ -140,7 +133,7 @@ module.exports =
         when 'b' then @eatKyev [], act: 'left'
         when 'f' then @eatKyev [], act: 'right'
         when 'g' then @bell()
-        when 'x' then @cycle app, state
+        # when 'x' then @cycle app, state
         when 'v' then @choose ''
         when 't'
           if cursor is 0 or input.length < 2
