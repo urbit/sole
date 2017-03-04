@@ -63,7 +63,8 @@ module.exports =
       #   else throw "Unknown "+(JSON.stringify ruh)
       else v = Object.keys(ruh); console.log v, ruh[v[0]]
 
-  join: (app,state)-> (@_dispatch)=> # XX bind new object?
+  join: (app,state)-> (@_dispatch)=> @_join app, state # XX bind new object?
+  _join: (app,state)->
     # if state[app]?
     #   return @print '# already-joined: '+app
     @choose app
@@ -90,7 +91,7 @@ module.exports =
       unless app? and app[0]?
         return @bell()
       else switch share.buf[0]
-        when '+' then @doEdit '', {share}, set: ""; @join app[0]
+        when '+' then @doEdit '', {share}, set: ""; @_join app[0]
         when '-' then @doEdit '', {share}, set: ""; @part app[0]
         else @bell()
 
