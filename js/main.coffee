@@ -13,10 +13,12 @@ Actions = require "./actions.coffee"
 
 noPad = padding: 0
 
-stateToProps = ({,app,state})->
-  {prompt,buffer:{share,cursor},history} = state[app]
-  if app is ''
+stateToProps = ({drum,app,state})->
+  if drum
+    {prompt,buffer:{share,cursor},history} = state[""]
     prompt = (k for k,v of state when k isnt '').join(', ') + '# '  
+  else
+    {prompt,buffer:{share,cursor},history} = state[app]
   input = 
     if history.offset >= 0
       history.log[history.offset] # editable mb?

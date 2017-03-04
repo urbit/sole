@@ -67,14 +67,12 @@ error = (state = "", {type, payload})->
     when "error" then payload
     else state
 
-#   drumOn = (state = false, {type})->
-#     switch type
-#       when "drumToggle" then !state
-#       else state
-
-#   drumBuffer = (state = (new Share ""), {type})->
+drum = (state = false, {type, payload})->
+  switch type
+    when "toggleDrum" then !state
+    else state
 
 module.exports = combineReducers {
-  error, rows, yank, app, state:
+  error, rows, yank, drum, app, state:
     byApp combineReducers {prompt,buffer,history,error}
 }

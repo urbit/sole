@@ -22,7 +22,7 @@ module.exports =
   bell: -> @flash ($ 'body'), 'black'
     
   getState: (app)-> # XX this seems vaguely smelly
-    {yank,rows,state} = @_getState()
+    {drum,yank,rows,state} = @_getState()
     {buffer:{share,cursor},history,error} = state[app]
     input = 
       if history.offset >= 0
@@ -76,8 +76,8 @@ module.exports =
     @choose apps[1 + apps.indexOf app] ? apps[0]
   
   part: (app,state)->
-    unless state[app]?
-      return @print '# not-joined: '+app
+    # unless state[app]?
+    #   return @print '# not-joined: '+app
     Persistence.drop app
     @cycle app, state
     @dispatchTo app, {"part"}
@@ -102,7 +102,8 @@ module.exports =
     @sendAction app, share, {det}
     
   eatKyev: (mod, key)-> (@_dispatch, @_getState)=> # XX bind new object?
-    {app} = @_getState()
+    {drum,app} = @_getState()
+    if drum then app = ""
     {yank,rows,app,state,share,cursor,input} = @getState app
     buffer = {share,cursor}
 
@@ -135,7 +136,7 @@ module.exports =
         when 'f' then @eatKyev [], act: 'right'
         when 'g' then @bell()
         # when 'x' then @cycle app, state
-        when 'v' then @choose ''
+        when 'v' then @dispatch {"toggleDrum"}
         when 't'
           if cursor is 0 or input.length < 2
             return @bell()
