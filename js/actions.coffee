@@ -84,7 +84,7 @@ module.exports =
   sendAction: (app, share, data)->  # handle join/part ^V prompt
     if app
       Persistence.sendAct app, data, null, (err)=>
-        @dispatch state: error: err.mess
+        @dispatch error: err.mess
     else if data is 'ret'
       app = /^[a-z-]+$/.exec(share.buf.slice(1))
       unless app? and app[0]?

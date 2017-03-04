@@ -37,7 +37,7 @@ Matr = connect((s)->s) ({rows}) ->
       pre {key,style:noPad}, lin, " "
     rele Prompt
 
-Sole = connect(({app,state})->state[app]) ({error})->
+Sole = connect((s)->s) ({error})->
   (div {},
      (div {id:"err"},error)
      (rele Matr)

@@ -64,7 +64,7 @@ history = (state = {offset:-1, log:[]}, {type, payload})->
 
 error = (state = "", {type, payload})->
   switch type
-    when "state.error" then payload
+    when "error" then payload
     else state
 
 #   drumOn = (state = false, {type})->
@@ -75,6 +75,6 @@ error = (state = "", {type, payload})->
 #   drumBuffer = (state = (new Share ""), {type})->
 
 module.exports = combineReducers {
-  rows, yank, app, state:
+  error, rows, yank, app, state:
     byApp combineReducers {prompt,buffer,history,error}
 }
