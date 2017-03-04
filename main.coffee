@@ -82,7 +82,7 @@ reducers = do ->
   
 #   drumBuffer = (state = (new Share ""), {type})->
 
-  combineReducers {rows, app, state:
+  combineReducers {rows, yank, app, state:
     byApp combineReducers {prompt,buffer,history,error}}
 
 stateToProps = ({yank,rows,app,state})->
