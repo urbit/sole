@@ -2,14 +2,14 @@
   "name": "web-sole",
   "version": "1.0.0",
   "description": "Urbit web console",
-  "main": "index.js",
+  "main": "js/main.coffee",
   "browserify": {
     "transform": [
       "coffeeify"
     ]
   },
   "scripts": {
-    "watch": "OUT=desk/web/lib/js; mkdir -p $OUT; watchify -v -o $OUT/sole.js main.coffee",
+    "watch": "OUT=desk/web/lib/js; mkdir -p $OUT; watchify -v -o $OUT/sole.js js/main.coffee",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
