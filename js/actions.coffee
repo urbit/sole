@@ -2,19 +2,21 @@ str = JSON.stringify
 
 Persistence =
   listen: (app,cb)->
-    urb.bind "/sole", {app,responseKey:"/"}, (err,d)=>
+    urb.bind "/sole/"+app, {app:"drumming",responseKey:"/"+app}, (err,d)=>
       if err then console.log err
       else if d.data then cb d.data
       
-  drop: (app)-> urb.drop "/sole", {app, responseKey: "/"}
+  drop: (app)->
+    urb.drop "/sole/"+app, {app:"drumming", responseKey: "/"+app}
 
   sendAct: (app,data,_,cbErr)->
-    urb.send data, {app,mark:'sole-action'}, (e,res)=>
+    urb.send data, {app:"drumming",mark:'sole-action', responseKey:"/"+app}, (e,res)=>
       # if e then cbErr e
       if res.status isnt 200
         cbErr res.data
         
-  sendKey: (app, {mod, key})-> urb.send {mod,key}, {app,mark:'dill-belt'}
+  sendKey: (app, {mod, key})->
+    urb.send {mod,key}, {app:"drumming",mark:'dill-belt', responseKey:"/"+app}
 
 module.exports =
   flash: ($el, background)->
