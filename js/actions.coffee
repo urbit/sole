@@ -55,7 +55,10 @@ module.exports =
       when 'txt' then @print ruh.txt
       when 'tan' then ruh.tan.trim().split("\n").map (s)=> @print s
       when 'pro' then @dispatchTo app, prompt: ruh.pro.cad
-      when 'pom' then @dispatchTo app, prompt: _.map ruh.pom, ({text})->text
+      when 'pom'
+        # XX actually separate app contents from prompt
+        if ruh.pom.length
+          @dispatchTo app, prompt: ruh.pom[0].text # _.map ruh.pom, ({text})->text 
       when 'hop' then # @dispatch cursor: ruh.hop #; @bell() # XX buffer.transpose?
       when 'blk' then console.log "Stub #{str ruh}"
       when 'det' then @dispatchTo app, receive: ruh.det
@@ -97,7 +100,7 @@ module.exports =
         else @bell()
 
   doEdit: (app, {share, cursor}, ted)->
-    det = share.transmit ted
+    det = share.transmit ted # XX fit this into redux model somehow
     cursor = share.transpose ted, cursor
     @dispatchTo app, edit: {share,cursor}
     @sendAction app, share, {det}
