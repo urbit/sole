@@ -13,16 +13,19 @@ Actions = require "./actions.coffee"
 noPad = padding: 0
 
 stateToProps = ({drum,app,state})->
-  if drum
-    {prompt,buffer:{share,cursor},history} = state[""]
-    prompt = (k for k,v of state when k isnt '').join(', ') + '# '  
+  if 0
+#   if drum
+#     {prompt,buffer:{share,cursor},history} = state[""]
+#     prompt = (k for k,v of state when k isnt '').join(', ') + '# '  
   else
     {prompt,buffer:{share,cursor},history} = state[app]
   input = 
-    if history.offset >= 0
-      history.log[history.offset] # editable mb?
-    else share.buf
-  {prompt,cursor,offset:history.offset,input}
+    share.buf
+#     if history.offset >= 0
+#       history.log[history.offset] # editable mb?
+#     else share.buf
+  {prompt,cursor,input}
+#   {prompt,cursor,offset:history.offset,input}
 
 Prompt = connect(stateToProps) ({prompt,cursor,offset,input})->
   cur =  cursor #- prompt.length
@@ -30,7 +33,7 @@ Prompt = connect(stateToProps) ({prompt,cursor,offset,input})->
   pre {style:noPad}, prompt,
     span {style: background: 'lightgray'},
       buf[...cur], (u {}, buf[cur] ? " "), buf[cur+1 ..]
-    (" ⧖" + offset) if offset >= 0
+#     (" ⧖" + offset) if offset >= 0
 
 Matr = connect((s)->s) ({rows}) ->
   div {},

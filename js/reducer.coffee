@@ -7,10 +7,10 @@ rows = (state = [], {type, payload})->
     when "row" then [state..., payload]
     when "clear" then []
     else state
-yank = (state = '', {type, payload})->
-  switch type
-    when "yank" then payload
-    else state
+# yank = (state = '', {type, payload})->
+#   switch type
+#     when "yank" then payload
+#     else state
 app = (state = '', {type, app, payload})->
   switch type
     when "choose" then app
@@ -42,37 +42,40 @@ prompt = (state = "X", {type, payload})->
   switch type
     when "prompt" then payload
     else state
-history = (state = {offset:-1, log:[]}, {type, payload})->
-  {offset, active, log} = state
-  switch type
-    when "historyAdd"
-      log = [payload, log...]
-      {offset:-1, log}
-    when "edit" then {offset:-1, log}
-    when "line" then {offset:-1, log}
-    when "historyPrevious"
-      if offset < log.length - 1
-        offset++
-      {offset, log}
-    when "historyNext"
-      if offset < 0
-        {offset,log}
-      else
-        offset--
-        {offset, log}
-    else state
+      
+# history = (state = {offset:-1, log:[]}, {type, payload})->
+#   {offset, active, log} = state
+#   switch type
+#     when "historyAdd"
+#       log = [payload, log...]
+#       {offset:-1, log}
+#     when "edit" then {offset:-1, log}
+#     when "line" then {offset:-1, log}
+#     when "historyPrevious"
+#       if offset < log.length - 1
+#         offset++
+#       {offset, log}
+#     when "historyNext"
+#       if offset < 0
+#         {offset,log}
+#       else
+#         offset--
+#         {offset, log}
+#     else state
 
 error = (state = "", {type, payload})->
   switch type
     when "error" then payload
     else state
 
-drum = (state = false, {type, payload})->
-  switch type
-    when "toggleDrum" then !state
-    else state
+# drum = (state = false, {type, payload})->
+#   switch type
+#     when "toggleDrum" then !state
+#     else state
 
 module.exports = combineReducers {
-  error, rows, yank, drum, app, state:
-    byApp combineReducers {prompt,buffer,history,error}
+  error, rows, app, state:
+    byApp combineReducers {prompt,buffer}
+#   error, rows, yank, drum, app, state:
+#     byApp combineReducers {prompt,buffer,history,error}
 }

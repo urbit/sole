@@ -29,9 +29,10 @@ module.exports =
     {drum,yank,rows,state} = @_getState()
     {buffer:{share,cursor},history,error} = state[app]
     input = 
-      if history.offset >= 0
-        history.log[history.offset] # editable mb?
-      else share.buf
+      share.buf
+#       if history.offset >= 0
+#         history.log[history.offset] # editable mb?
+#       else share.buf
     apps = (k for k of state when k isnt "")
     nextApp = apps[1 + apps.indexOf app] ? apps[0]
     {yank,rows,app,nextApp,state,prompt,share,cursor,input,error}
@@ -67,8 +68,8 @@ module.exports =
         when 'bel' then @bell()
         when 'nex'
           @dispatch {'line'}
-          {input} = @getState app
-          if input then @dispatchTo app, historyAdd: input
+#           {input} = @getState app
+#           if input then @dispatchTo app, historyAdd: input
       #   else throw "Unknown "+(JSON.stringify ruh)
       else v = Object.keys(ruh); console.log v, ruh[v[0]]
 
@@ -107,7 +108,7 @@ module.exports =
     
   eatKyev: (mod, key)-> (@_dispatch, @_getState)=> # XX bind new object?
     {drum,app} = @_getState()
-    if drum then app = ""
+#     if drum then app = ""
     {yank,rows,app,nextApp,state,share,cursor,input} = @getState app
     buffer = {share,cursor}
 
@@ -119,8 +120,8 @@ module.exports =
           @dispatchTo app, cursor: cursor+1
         switch key.act
           when 'entr' then @sendAction app, share, 'ret'
-          when 'up' then @dispatchTo app, {'historyPrevious'}
-          when 'down' then @dispatchTo app, {'historyNext'}
+#           when 'up' then @dispatchTo app, {'historyPrevious'}
+#           when 'down' then @dispatchTo app, {'historyNext'}
           when 'left' then if cursor > 0 
             @dispatchTo app, cursor: cursor-1
           when 'right' then if cursor < input.length
@@ -134,13 +135,13 @@ module.exports =
         when 'l' then @dispatch {'clear'}
         when 'entr' then @bell()
         when 'w' then @eatKyev ['alt'], act:'baxp'
-        when 'p' then @eatKyev [], act: 'up'
-        when 'n' then @eatKyev [], act: 'down'
+#         when 'p' then @eatKyev [], act: 'up'
+#         when 'n' then @eatKyev [], act: 'down'
         when 'b' then @eatKyev [], act: 'left'
         when 'f' then @eatKyev [], act: 'right'
         when 'g' then @bell()
         when 'x' then Persistence.sendKey app, {mod, key} #@choose nextApp
-        when 'v' then @dispatch {"toggleDrum"}
+#         when 'v' then @dispatch {"toggleDrum"}
         when 't'
           if cursor is 0 or input.length < 2
             return @bell()
@@ -149,13 +150,13 @@ module.exports =
           @doEdit app, buffer, [{del:cursor-1},ins:{at:cursor-2,cha:input[cursor-1]}]
           @dispatchTo app, {cursor}
         when 'u' 
-          @dispatch yank: input.slice(0,cursor)
+#           @dispatch yank: input.slice(0,cursor)
           @doEdit app, buffer, (del:cursor - n for n in [1..cursor])
         when 'k'
-          @dispatch yank: input.slice(cursor)
+#           @dispatch yank: input.slice(cursor)
           @doEdit app, buffer, (del:cursor for _ in [cursor...input.length])
-        when 'y'
-          @doEdit app, buffer, (ins: {cha, at: cursor + n} for cha,n in yank ? '')
+#         when 'y'
+#           @doEdit app, buffer, (ins: {cha, at: cursor + n} for cha,n in yank ? '')
         else console.log mod, str key
       when 'alt' then switch key.str || key.act
         when 'f','right'
@@ -171,6 +172,6 @@ module.exports =
           prev = input.slice(0,cursor)
           prev = prev.split('').reverse().join('')  # XX
           prev = prev.match(/\W*\w*/)[0] # XX unicode
-          @dispatch yank: prev
+#           @dispatch yank: prev
           @doEdit app, buffer, (del: cursor-1 - n for _,n in prev)
       else console.log mod, str key
